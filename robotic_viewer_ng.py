@@ -7,7 +7,7 @@ from PySide2.QtWidgets  import QGroupBox, QVBoxLayout, QComboBox
 from PySide2.QtGui      import QPixmap, QImage, QIcon, QPainter, QBrush,QColor
 from PySide2.QtGui      import QPen, QTransform, QPolygon
 from PySide2.QtCore     import QObject,QRect, Signal, Slot, QPoint, QTimer, Qt
-from robotique_lib      import *
+from robotic_brain      import *
 
 class Robotic_Viewer_NG(QMainWindow):
     def __init__(self):
@@ -307,8 +307,7 @@ class Robotic_Viewer_NG(QMainWindow):
             self.updateRbtSensors()
 
             # Appel de la stratégie
-            self.brain.setTargetPoint(self.robotM)
-            self.brain.setTargetPoint(self.robotG)
+            self.brain.beat( (self.robotM,self.robotG) )
 
             # Simulation des robots
             self.robotM_traget.setXY(self.robotM.getTarget().getPosition().getX(),self.robotM.getTarget().getPosition().getY())
