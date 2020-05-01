@@ -2,76 +2,11 @@ from robotic_basics import *
 import math
 
 
-class VirtualRobot :
+class VirtualRobot(Robot_static) :
     def __init__(self, a_id): # Constructeur
-        self.id = a_id
-        self.reg = Polar_regulator()
-        self.target = State(0,0,0)
-        self.state  = State(0,0,0)
-        self.dist = 0
-        self.simuCmd = False
-        self.width = 23
-        self.lenght = 13
-        self.sensors = {'front':0,'left':0,'right':0}
+        Robot_static.__init__(self,a_id)
 
-    def __str__(self): # Built-in print
-        return self.id
-
-    def setID(self, name):
-        self.id = name
-
-    def getID(self):
-        return self.id
-
-    def getWidth(self):
-        return self.width
-        
-    def getLength(self):
-        return self.width
-
-    def setPosition(self, x , y):
-        self.state.setXY(x,y)
-
-    def setAngle(self, teta):
-        self.state.setAngle(teta)
-
-    def setStaticState(self, x , y, teta):
-        self.state.setXYT(x,y,teta)
-
-    def setTarget(self, x, y, teta, priority,arg):
-        self.target.setXYT(x,y,teta)
-        self.reg.setPriority(priority,arg)
-
-    def isArrived(self):
-        dist_Error = self.getTargetDistance()
-        heading_Error = self.getAngle() - self.target.getAngle()
-        if dist_Error < 3 and np.cos(heading_Error) > 0.90 :
-            boul = True
-        else :
-            boul = False
-        return boul
-
-    def getTarget(self):
-        return self.target
-
-    def getTargetDistance(self):
-        return self.target.distanceFrom(self.state)
-
-    def getPosition(self):
-        return self.state
-
-    def getAngle(self):
-        return self.state.angle
-
-    def setSensors(self, mesures):
-        self.sensors = mesures.copy()
-
-    def getSensors(self):
-        return self.sensors.copy()
-
-    def simulate(self,timeStep_ms):
-        self.simuCmd = True
-
+    def updateState(self,timeStep_ms):
         #l_t = 0
         #l_dt = 100/1000
         l_dt = timeStep_ms/1000
@@ -94,82 +29,64 @@ class VirtualRobot :
         l_dotBigX = np.array([l_dotX,l_dotY,l_dotT,l_dotD],float)
         return l_dotBigX
 
-class Polar_regulator :
-    def __init__(self): # Constructeur
-        self.Kp_angle = 5
-        self.Kp_dist = 1
+    def updateSensors(self, elements):
+        ### Construction de la matrice de transformation
+        tx = -self.getPosition().getX() # Translation sur axe X
+        ty = -self.getPosition().getY() # Translation sur axe Y
+        Mtr = np.array([ [1,0,tx],
+                            [0,1,ty],
+                            [0,0,1] ])
 
-        self.dist2wheels = 22         # Cm
-        self.linMax = 80              # Cm  / s
-        self.rotMax = np.deg2rad(90)  # rad / s
-        
-        self.priorities = ('delay','orientation','speedSign')
-        self.priority = self.priorities[0]
-        self.priority_arg = 1
+        ### Initialisation des données senseurs
+        data = {'front':300,'left':300,'right':300}
 
-    def __str__(self): # Built-in print
-        return "Robot regulator - Angle and Linear Speed"
+        ### Calcul des valeurs mesurées
+        """ 
+        On calcul pour chaque element son influence sur la valeur mesuree
+        on conserve l'influence de l'element qui coupe le faisseau en premier.
+        """
+        for elt in elements:
+            ### Placer l'elt dans le référentiel du robot
+            Vori = np.array([elt.getX(),elt.getY(),1])
+            Vrob = np.dot(Mtr,np.transpose(Vori))
+            l_elt_pos = Point(Vrob[0],Vrob[1])
 
-    def setPriority(self, priority, arg):
-        if priority in self.priorities :
-            self.priority = priority
-            self.priority_arg = arg
-        else :
-            self.priority = self.priorities[0]
-            print('SetPriority : Unknowed priority')
-
-    def fitToRobot(self,rotS,linS):
-        l_rot = rotS / self.rotMax
-        l_lin = linS / self.linMax
-
-        polarVect = np.sqrt((l_lin**2) + (l_rot**2)),np.arctan2(l_lin,l_rot)
-
-        if polarVect[0] > np.sqrt(1/2) :
-            polarVect = np.sqrt(1/2),polarVect[1]
-        else :
-            pass
-
-        rotS = polarVect[0]*np.cos(polarVect[1])*self.rotMax
-        linS = polarVect[0]*np.sin(polarVect[1])*self.linMax
-
-        return rotS,linS
-
-    def getOutput(self,a_currentState, a_target):
-        cmd_vector = np.array([0,0],float)
-
-        errorDistance = a_target.distanceFrom(a_currentState)
-
-        if errorDistance < 2.0 :
-            errorAngle = moduloPI(a_target.angle - a_currentState.angle)
-            errorDistance = 0
-        else :
-            errorAngle = moduloPI(a_currentState.capTo(a_target) - a_currentState.angle)
-
-        if self.priority == 'orientation' :
-            if np.cos(errorAngle) > 0.95 :
-                l_rotS = self.Kp_angle * errorAngle
-                l_linS = self.Kp_dist  * errorDistance
+            ### Les rectangles sont approximés à des cercles de rayon r
+            if 'rect' in elt.getID():
+                r = np.max((elt.getWidth(),elt.getLength()))/2
+            elif 'circle' in elt.getID():
+                r = elt.getRayon()
             else :
-                if np.sign(errorAngle) == np.sign(self.priority_arg):
-                    l_rotS = self.Kp_angle * errorAngle
-                else :
-                    l_rotS = self.Kp_angle * (np.abs(errorAngle)+self.priority_arg*2*np.pi)
-                l_linS = 0
-        elif self.priority == 'speedSign' :
-            if errorDistance < 2.0/100 :
-                l_rotS = self.Kp_angle * errorAngle
-            else :
-                l_rotS = self.Kp_angle * moduloPI(errorAngle + np.pi*((1-self.priority_arg)/2))
-            l_linS = self.Kp_dist  * errorDistance * self.priority_arg
-        else : # Shorter way
-            if np.abs(errorAngle) > np.pi/2 and errorDistance > 2/100:
-                # marche arrière
-                l_rotS = self.Kp_angle * moduloPI(errorAngle + np.pi)
-                l_linS = self.Kp_dist  * errorDistance * -1
-            else:
-                l_rotS = self.Kp_angle * errorAngle
-                l_linS = self.Kp_dist  * errorDistance
-        
-        cmd_vector[0], cmd_vector[1] = self.fitToRobot(l_rotS,l_linS) # Commande rot Speed, lin Speed
+                r = 0
 
-        return cmd_vector
+            ### Distance centre à centre
+            dist_p2p = self.getPosition().distanceFrom(elt.getPosition())
+
+            ### Prise en compe de l'orientation du robot
+            l_e =  moduloPI( self.getAngle() - Point(0,0).capTo(l_elt_pos) )
+
+            a_f = l_e
+            a_l = l_e + np.deg2rad(20)
+            a_r = l_e - np.deg2rad(20)
+
+            ### Distance entre l'element et la droite vue par le capteur
+            dist_p2l_f = np.abs(dist_p2p*np.tan(a_f))
+            dist_p2l_l = np.abs(dist_p2p*np.tan(a_l))
+            dist_p2l_r = np.abs(dist_p2p*np.tan(a_r))
+
+            ### On calcul si l'element est dans le champ du capteur
+            d_f = d_l = d_r = 300
+            if dist_p2l_f <  r and ( np.abs(a_f) < np.deg2rad(20) ):
+                d_f = np.sqrt(dist_p2p**2 - dist_p2l_f**2)
+            if dist_p2l_l <  r and ( np.abs(a_l) < np.deg2rad(20) ):
+                d_l = np.sqrt(dist_p2p**2 - dist_p2l_l**2)
+            if dist_p2l_r <  r and ( np.abs(a_r) < np.deg2rad(20) ):
+                d_r = np.sqrt(dist_p2p**2 - dist_p2l_r**2)
+
+            # Si l'element courant est devant les autres elements mesures
+            # alors on conserve que l'element le plus proche 
+            data['front']   = np.min((data['front'],d_f))
+            data['left']    = np.min((data['left'],d_l))
+            data['right']   = np.min((data['right'],d_r))
+
+        self.setSensors(data.copy())

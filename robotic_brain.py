@@ -5,12 +5,15 @@ from PySide2.QtCore import QRect
 
 class Strategy:
     def __init__(self):
+        # Element de jeux
+        self.gameArea = Rect(0,0,200,300)
         self.elements = dict()
         self.actions = dict()
         self.actionsMade = list()
 
+        self.robots = list()
+
         self.actionsEnCours = {'MarioBot':'InitMPos','GuiguiBot':'InitGPos'}
-        self.gameArea = Rect(0,0,200,300)
         self.teamColor = 'blue'
 
         self.buildGameStaticMap()
@@ -18,33 +21,36 @@ class Strategy:
     def __str__(self): # Built-in print
         return 'Strat'
 
+    def addRobot(self, rbt):
+        self.robots.append(rbt)
+
     def buildGameStaticMap(self):
-        self.actIM = Action('InitMPos',90,25,np.deg2rad(0))
-        self.actIG = Action('InitGPos',70,25,np.deg2rad(180))
-        self.act1  = Action('Code Bar',125,150,0)
-        self.act2  = Action('Zone Dep',100,277,np.pi/4)
-        self.act3  = Action('Manche R',185,236,0)
-        self.act4  = Action('Phare',10,23,np.pi/2)
+        l_a1 = Action('InitMPos',90,25,np.deg2rad(0))
+        l_a2 = Action('InitGPos',70,25,np.deg2rad(180))
+        l_a3 = Action('Code Bar',125,150,0)
+        l_a4 = Action('Zone Dep',100,277,np.pi/4)
+        l_a5 = Action('Manche R',185,236,0)
+        l_a6 = Action('Phare',10,23,np.pi/2)
 
-        self.addActionList((self.actIM,self.actIG,self.act1,self.act2,self.act3,self.act4))
+        self.addActionList((l_a1,l_a2,l_a3,l_a4,l_a5,l_a6))
 
-    def buildGameContext(self):
-        # Ligne de chenal
-        self.actIM = Action('InitMPos',90,25,np.deg2rad(0))
-        self.actIG = Action('InitGPos',70,25,np.deg2rad(180))
-        self.act1  = Action('TAG ArUco',125,150,0)
-        self.act2  = Action('Port',100,277,np.pi/4)
-        self.act3  = Action('Manche R1',185,236,0)
-        self.act3  = Action('Manche R2',185,236,0)
-        self.act4  = Action('Phare',10,23,np.pi/2)
-        self.act4  = Action('Girouette',10,23,np.pi/2)
-        self.act4  = Action('Ecueils S',10,23,np.pi/2)
-        self.act4  = Action('Ecueils NO',10,23,np.pi/2)
-        self.act4  = Action('Ecueils NE',10,23,np.pi/2)
-        self.act4  = Action('Mouillage Sud',10,23,np.pi/2)
-        self.act4  = Action('Mouillage Nord',10,23,np.pi/2)
+    # def buildGameContext(self):
+    #     # Ligne de chenal à ne pas oublier
+    #     l_a1  = Action('InitMPos',90,25,np.deg2rad(0))
+    #     l_a2  = Action('InitGPos',70,25,np.deg2rad(180))
+    #     l_a3  = Action('TAG ArUco',125,150,0)
+    #     l_a4  = Action('Port',100,277,np.pi/4)
+    #     l_a5  = Action('Manche R1',185,236,0)
+    #     l_a6  = Action('Manche R2',185,236,0)
+    #     l_a7  = Action('Phare',10,23,np.pi/2)
+    #     l_a8  = Action('Girouette',10,23,np.pi/2)
+    #     l  = Action('Ecueils S',10,23,np.pi/2)
+    #     self.act4  = Action('Ecueils NO',10,23,np.pi/2)
+    #     self.act4  = Action('Ecueils NE',10,23,np.pi/2)
+    #     self.act4  = Action('Mouillage Sud',10,23,np.pi/2)
+    #     self.act4  = Action('Mouillage Nord',10,23,np.pi/2)
 
-        self.addActionList(())
+    #     self.addActionList(())
 
     def addElement(self, key, value):
         self.elements[key]=value
@@ -66,6 +72,9 @@ class Strategy:
             return self.elements[key]
         else :
             return 0
+
+    def getElements(self):
+        return self.elements
 
     def addAction(self, key, value):
         self.actions[key]=value
@@ -99,7 +108,8 @@ class Strategy:
             print(f'assignAction : Unknowed Action Key {action_k}')
 
     def giveMeAnAction(self,rbt_ID):
-        l_toDo = [k for k in list(self.actions.keys()) if not(('Init' in k) or ('Manuel' in k) or (k in self.actionsEnCours.values()) )]
+        l_toDo = [k for k in list(self.actions.keys()) if not(('Init' in k) or ('Manuel' in k) or 
+                                                            (k in self.actionsEnCours.values()))] 
         l_key = ''
         if len(l_toDo)>0 :
             l_key = l_toDo[0]
@@ -133,8 +143,8 @@ class Strategy:
         l_trajectory = Point(50,50),Point(100,150),Point(50,250)
         return l_trajectory
 
-    def beat(self,ressources):
-        for rsc in ressources:
+    def beat(self):
+        for rsc in self.robots:
             self.setTargetPoint(rsc)
 
 class Action(State): 

@@ -15,7 +15,7 @@ class Robotic_Viewer_NG(QMainWindow):
         self.setWindowTitle('A Wonderfull Name')
         self.resize(1080,720)
         self.setWindowIcon(QIcon(QPixmap('smallLogo.png')))
-        self.setStyleSheet("QMainWindow {background: '#f1fcb3';}");
+        self.setStyleSheet("QMainWindow {background: '#f1fcb3';}")
         self.setMinimumWidth(960)
         self.setMinimumHeight(720)
 
@@ -35,33 +35,38 @@ class Robotic_Viewer_NG(QMainWindow):
         self.fitToWindow()
 
     def buildGameElements(self):
+        # Création d'une stratégie de jeux        
         self.robotM = VirtualRobot('MarioBot')
         self.robotG = VirtualRobot('GuiguiBot')
-        self.robots = [self.robotM,self.robotG]
+        self.robots = [ self.robotM , self.robotG ]
+
+        self.brain = Strategy()
+        self.brain.addRobot(self.robotM)
+        self.brain.addRobot(self.robotG)
 
         self.robotM_traget = Circle(0,0,5)
         self.robotG_traget = Circle(0,0,5)
 
-        self.cercA = Circle(80,-30,30)
-        self.cercB = Circle(30,330,30)
-        self.cercC = Circle(80,330,30)
-        self.cercD = Circle(30,-30,40)
+        # Création d'action supplémentaires
+        self.act1 = Action('ManuelM',90,25,np.deg2rad(0))
+        self.act2 = Action('ManuelG',70,25,np.deg2rad(180))
 
-        self.staticElts = [self.cercA,self.cercB,self.cercC,self.cercD]
+        self.brain.addAction(self.act1.getID(),self.act1)
+        self.brain.addAction(self.act2.getID(),self.act2)
+
+        # Création d'element de jeux externes
+        l_cercA = Circle(80,-30,30)
+        l_cercB = Circle(30,330,30)
+        l_cercC = Circle(80,330,30)
+        l_cercD = Circle(30,-30,40)
+
+        self.staticElts = [l_cercA,l_cercB,l_cercC,l_cercD]
 
         i = 0
         for elt in self.staticElts :
             elt.setID(elt.getID()+' '+repr(i))
             print(elt)
             i = i +1
-
-        self.brain = Strategy()
-
-        self.act1 = Action('ManuelM',90,25,np.deg2rad(0))
-        self.act2 = Action('ManuelG',70,25,np.deg2rad(180))
-
-        self.brain.addAction(self.act1.getID(),self.act1)
-        self.brain.addAction(self.act2.getID(),self.act2)
 
         self.rstElmtPos()
 
@@ -73,7 +78,6 @@ class Robotic_Viewer_NG(QMainWindow):
 
     def rstElmtStat(self):
         #self.staticElts = [self.cercA,self.cercB,self.cercC,self.cercD]
-
         self.repaint()
 
     def paintEvent(self, event):
@@ -221,9 +225,15 @@ class Robotic_Viewer_NG(QMainWindow):
         l_gridLayout.addWidget(self.pushBtnPF,3,3)
         l_gridLayout.addWidget(self.labelPfElt,4,3)
 
+        l_gridLayout.setColumnStretch(0, a_widget.width()/4)
+        l_gridLayout.setColumnStretch(1, a_widget.width()/4)
+        l_gridLayout.setColumnStretch(2, a_widget.width()/4)
+        l_gridLayout.setColumnStretch(3, a_widget.width()/4)
+
         self.settingsGroupBox.setLayout(l_gridLayout)
         vbox = QVBoxLayout()
         vbox.addWidget(self.settingsGroupBox)
+
         a_widget.setLayout(vbox)
 
     def startSimu(self):
@@ -237,84 +247,21 @@ class Robotic_Viewer_NG(QMainWindow):
         self.brain.assignAction(self.comboBoxStratRbtG.currentText(),self.robotG.getID())
         self.brain.assignAction(self.comboBoxStratRbtM.currentText(),self.robotM.getID())
 
-    def updateRbtSensors(self):
-        for rbt in self.robots :
-            tx = -rbt.getPosition().getX()
-            ty = -rbt.getPosition().getY()
-            Mtr = np.array([ [1,0,tx],
-                             [0,1,ty],
-                             [0,0,1] ])
-
-            data = {'front':300,'left':300,'right':300}
-            for k in self.brain.getElementsKeys() :
-                elt = self.brain.getElement(k)
-
-                # Placer l'elt dans le référentiel du robot
-                Vori = np.array([elt.getX(),elt.getY(),1])
-                Vrob = np.dot(Mtr,np.transpose(Vori))
-                l_elt_pos = Point(Vrob[0],Vrob[1])
-
-                r = 0
-                if 'rect' in elt.getID():
-                    r = np.max((elt.getWidth(),elt.getLength()))/2
-                elif 'circle' in elt.getID():
-                    r = elt.getRayon()
-                else :
-                    pass
-
-                dist_p2p = rbt.getPosition().distanceFrom(elt.getPosition())
-
-                l_e =  rbt.getAngle()-Point(0,0).capTo(l_elt_pos)
-                l_e = moduloPI(l_e)
-
-                a_f = l_e
-                a_l = l_e+np.deg2rad(20)
-                a_r = l_e-np.deg2rad(20)
-
-                dist_p2l_f = np.abs(dist_p2p*np.tan(a_f))
-                dist_p2l_l = np.abs(dist_p2p*np.tan(a_l))
-                dist_p2l_r = np.abs(dist_p2p*np.tan(a_r))
-
-                # if 'M' in rbt.getID() :
-                #     print(f'MarioBot : rayon de elt = {r}')
-                #     print(f'MarioBot : Angle Err    = {np.rad2deg(l_e)}')
-                #     print(f'MarioBot : Distance P2P = {dist_p2p}')
-                #     print(f'MarioBot : Distance P2L = {dist_p2l_f}')
-
-                d_f = 300
-                d_l = 300
-                d_r = 300
-                if dist_p2l_f <  r and np.abs(a_f) < np.deg2rad(20):
-                    d_f = np.sqrt(dist_p2p**2 - dist_p2l_f**2)
-                if dist_p2l_l <  r and np.abs(a_l) < np.deg2rad(20):
-                    d_l = np.sqrt(dist_p2p**2 - dist_p2l_l**2)
-                if dist_p2l_r <  r and np.abs(a_r) < np.deg2rad(20):
-                    d_r = np.sqrt(dist_p2p**2 - dist_p2l_r**2)
-
-                data['front']   = np.min((data['front'],d_f))
-                data['left']    = np.min((data['left'],d_l))
-                data['right']   = np.min((data['right'],d_r))
-
-            rbt.setSensors(data.copy())
-            #print (rbt.getID()+'dist : '+repr(rbt.getSensors()))
-
     def simulationStep(self):
         if self.time < self.timeSimu :
+            # Appel de la stratégie
+            self.brain.beat()
+
+            # Simulation des robots
+            for rbt in self.robots :
+                rbt.updateState(self.rythmSim.interval())               # Refresh position
+                rbt.updateSensors(self.brain.getElements().values())    # Refresh sensors data
+
             # Mise à jour de l'interface graphique
             self.time = self.time + (self.rythmSim.interval()/1000)
             self.labelSimuInfos.setText('Simulation : '+repr(round(self.time,2))+'\t/ '+repr(self.timeSimu)+' sec')
-            # Mise à jour des donnés senseurs
-            self.updateRbtSensors()
-
-            # Appel de la stratégie
-            self.brain.beat( (self.robotM,self.robotG) )
-
-            # Simulation des robots
             self.robotM_traget.setXY(self.robotM.getTarget().getPosition().getX(),self.robotM.getTarget().getPosition().getY())
             self.robotG_traget.setXY(self.robotG.getTarget().getPosition().getX(),self.robotG.getTarget().getPosition().getY())
-
-            for rbt in self.robots :
-                rbt.simulate(self.rythmSim.interval())
             self.repaint()
         else :
             pass
@@ -370,7 +317,7 @@ class Robotic_Viewer_NG(QMainWindow):
     def refreshEltLabel(self):
         l_str = ''
         for i in self.brain.getElementsKeys():
-            l_str = i+'\n'+l_str
+            l_str = i+' '+l_str
         self.labelPfElt.setText(l_str)
 
     def sliderEvolution(self,it):
