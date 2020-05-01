@@ -1,7 +1,5 @@
 import numpy as np
-from robotic_basics import *
-from robotic_simu import *
-from PySide2.QtCore import QRect
+from robotic_basics import Point, Rect, State
 
 class Strategy:
     def __init__(self):

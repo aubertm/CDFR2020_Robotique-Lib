@@ -1,5 +1,7 @@
-from robotic_basics import *
 import math
+import numpy as np
+from robotic_basics import Robot_static, Point, moduloPI
+
 
 
 class VirtualRobot(Robot_static) :

@@ -251,6 +251,6 @@ class Rect(Point):
         inY = (point.getY() < upYbound) and (point.getY() > dwYbound)
 
         return inX and inY
-
+        
 def moduloPI(a_angle):
     return 2*np.arctan(np.tan(a_angle/2))
